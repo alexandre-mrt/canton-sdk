@@ -4,7 +4,7 @@
  *
  * Comparison with official @canton-network packages:
  * - @canton-network/core-types: 50+ types, internal enums, protobuf-derived
- * - canton-sdk: ~15 types, developer-friendly, JSON-API-aligned
+ * - canton-sdk: ~20 types, developer-friendly, JSON-API-aligned
  */
 
 /** Canton party identifier (e.g., "Alice::1220f2fe29...") */
@@ -19,14 +19,31 @@ export type ContractId<T = unknown> = string & {
 /** Template identifier (format: #package-name:Module:Template) */
 export type TemplateId = string & { readonly __brand: "TemplateId" };
 
-/** Create a typed template ID */
+/**
+ * Create a typed template ID from a string.
+ * @param id - Template identifier string (e.g., "#my-app:Main:Asset")
+ * @returns A branded TemplateId
+ */
 export function templateId(id: string): TemplateId {
 	return id as TemplateId;
 }
 
-/** Create a party ID */
+/**
+ * Create a typed party ID from a string.
+ * @param id - Party identifier string (e.g., "Alice::1220f2fe29...")
+ * @returns A branded PartyId
+ */
 export function partyId(id: string): PartyId {
 	return id as PartyId;
+}
+
+/**
+ * Create a typed contract ID from a string.
+ * @param id - Contract identifier string
+ * @returns A branded ContractId
+ */
+export function contractId<T = unknown>(id: string): ContractId<T> {
+	return id as ContractId<T>;
 }
 
 /** Canton SDK configuration */
@@ -41,6 +58,20 @@ export interface CantonConfig {
 	timeout?: number;
 	/** Use demo mode (in-memory ledger, no real Canton node) */
 	demo?: boolean;
+	/** Retry configuration for failed requests */
+	retry?: RetryConfig;
+}
+
+/** Retry configuration for exponential backoff */
+export interface RetryConfig {
+	/** Maximum number of retry attempts (default: 3) */
+	maxRetries?: number;
+	/** Initial delay in milliseconds before first retry (default: 1000) */
+	initialDelayMs?: number;
+	/** Maximum delay in milliseconds between retries (default: 10000) */
+	maxDelayMs?: number;
+	/** Multiplier for exponential backoff (default: 2) */
+	backoffMultiplier?: number;
 }
 
 /** Active contract on the ledger */
@@ -94,6 +125,11 @@ export class CantonError extends Error {
 		this.errorCode = errorCode;
 		this.details = details;
 	}
+
+	/** Whether this error is retryable (5xx or network errors) */
+	get isRetryable(): boolean {
+		return this.status >= 500 || this.status === 429;
+	}
 }
 
 /** Connection state */
@@ -102,3 +138,32 @@ export type ConnectionState =
 	| { status: "connecting" }
 	| { status: "connected"; party: PartyId; participantId: string }
 	| { status: "error"; error: string };
+
+/** Event types emitted by the CantonClient event system */
+export type CantonEventType =
+	| "contractCreated"
+	| "contractArchived"
+	| "choiceExercised"
+	| "connected"
+	| "disconnected"
+	| "error"
+	| "tokenExpiring";
+
+/** Payload for each event type */
+export interface CantonEventMap {
+	contractCreated: { contractId: string; templateId: string; payload: Record<string, unknown> };
+	contractArchived: { contractId: string; templateId: string };
+	choiceExercised: { contractId: string; templateId: string; choice: string; result: unknown };
+	connected: { party: PartyId };
+	disconnected: Record<string, never>;
+	error: { message: string; code?: string };
+	tokenExpiring: { expiresInMs: number };
+}
+
+/** Listener function for Canton events */
+export type CantonEventListener<K extends CantonEventType> = (
+	event: CantonEventMap[K],
+) => void;
+
+/** WebSocket connection state */
+export type WebSocketState = "closed" | "connecting" | "open" | "error";
