@@ -71,7 +71,15 @@ export class CantonClient {
 	 * Create a new CantonClient instance.
 	 * @param config - Client configuration including API URL, token, and retry settings
 	 */
+	/** Shared promise to deduplicate concurrent token refresh calls */
+	private tokenRefreshPromise: Promise<string> | null = null;
+
 	constructor(config: CantonConfig) {
+		const url = new URL(config.jsonApiUrl);
+		if (!["http:", "https:"].includes(url.protocol)) {
+			throw new Error(`Unsupported protocol: ${url.protocol}`);
+		}
+
 		this.config = {
 			applicationId: DEFAULT_APP_ID,
 			timeout: DEFAULT_TIMEOUT,
@@ -462,7 +470,7 @@ export class CantonClient {
 
 				if (err instanceof CantonError && err.status === 401 && this.tokenRefreshCallback) {
 					try {
-						this.token = await this.tokenRefreshCallback();
+						this.token = await this.refreshTokenDeduped();
 						this.emitter.emit("tokenExpiring", { expiresInMs: 0 });
 						return await this.request<T>(endpoint, init);
 					} catch {
@@ -482,7 +490,8 @@ export class CantonClient {
 					break;
 				}
 
-				await this.sleep(delay);
+				const jitter = Math.random() * delay * 0.5;
+				await this.sleep(delay + jitter);
 				delay = Math.min(delay * this.retry.backoffMultiplier, this.retry.maxDelayMs);
 			}
 		}
@@ -526,10 +535,32 @@ export class CantonClient {
 				// text is not JSON
 			}
 
-			throw new CantonError(response.status, errorCode, details);
+			const MAX_DETAILS_LENGTH = 500;
+			const truncatedDetails =
+				details.length > MAX_DETAILS_LENGTH
+					? `${details.slice(0, MAX_DETAILS_LENGTH)}...`
+					: details;
+
+			throw new CantonError(response.status, errorCode, truncatedDetails);
 		}
 
 		return response.json();
+	}
+
+	/**
+	 * Deduplicate concurrent token refresh calls by sharing a single promise.
+	 * Prevents thundering herd when multiple requests hit 401 simultaneously.
+	 */
+	private async refreshTokenDeduped(): Promise<string> {
+		if (this.tokenRefreshPromise) {
+			return this.tokenRefreshPromise;
+		}
+
+		this.tokenRefreshPromise = this.tokenRefreshCallback!().finally(() => {
+			this.tokenRefreshPromise = null;
+		});
+
+		return this.tokenRefreshPromise;
 	}
 
 	private sleep(ms: number): Promise<void> {
