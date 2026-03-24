@@ -230,7 +230,81 @@ describe("CantonClient", () => {
 	});
 
 	// ---------------------------------------------------------------
-	// 9. Auth header: token sent when configured, absent when missing
+	// 9. Retry behavior
+	// ---------------------------------------------------------------
+	describe("retry behavior", () => {
+		it("retries on 503 then succeeds on 200", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch")
+				.mockResolvedValueOnce({
+					ok: false,
+					status: 503,
+					text: () => Promise.resolve(JSON.stringify({ error: { errorCode: "UNAVAILABLE", message: "Service unavailable" } })),
+				} as Response)
+				.mockResolvedValueOnce(mockFetchResponse({ result: [] }));
+
+			const client = new CantonClient({
+				jsonApiUrl: BASE_URL,
+				retry: { maxRetries: 2, initialDelayMs: 1, maxDelayMs: 2, backoffMultiplier: 1 },
+			});
+
+			const result = await client.query(TEMPLATE);
+
+			expect(fetchSpy).toHaveBeenCalledTimes(2);
+			expect(result).toEqual([]);
+		});
+
+		it("stops retrying after maxRetries is exhausted", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+				ok: false,
+				status: 503,
+				text: () => Promise.resolve(JSON.stringify({ error: { errorCode: "UNAVAILABLE", message: "Service unavailable" } })),
+			} as Response);
+
+			const client = new CantonClient({
+				jsonApiUrl: BASE_URL,
+				retry: { maxRetries: 2, initialDelayMs: 1, maxDelayMs: 2, backoffMultiplier: 1 },
+			});
+
+			await expect(client.query(TEMPLATE)).rejects.toThrow(CantonError);
+			// 1 initial attempt + 2 retries = 3 total calls
+			expect(fetchSpy).toHaveBeenCalledTimes(3);
+		});
+
+		it("does not retry on 400 (non-retryable status)", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+				ok: false,
+				status: 400,
+				text: () => Promise.resolve(JSON.stringify({ error: { errorCode: "BAD_REQUEST", message: "Invalid payload" } })),
+			} as Response);
+
+			const client = new CantonClient({
+				jsonApiUrl: BASE_URL,
+				retry: { maxRetries: 3, initialDelayMs: 1, maxDelayMs: 2, backoffMultiplier: 1 },
+			});
+
+			await expect(client.query(TEMPLATE)).rejects.toThrow(CantonError);
+			expect(fetchSpy).toHaveBeenCalledTimes(1);
+		});
+
+		it("retries on network error (TypeError) then succeeds", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch")
+				.mockRejectedValueOnce(new TypeError("fetch failed"))
+				.mockResolvedValueOnce(mockFetchResponse({ result: [] }));
+
+			const client = new CantonClient({
+				jsonApiUrl: BASE_URL,
+				retry: { maxRetries: 2, initialDelayMs: 1, maxDelayMs: 2, backoffMultiplier: 1 },
+			});
+
+			const result = await client.query(TEMPLATE);
+
+			expect(fetchSpy).toHaveBeenCalledTimes(2);
+			expect(result).toEqual([]);
+		});
+	});
+
+	// ---------------------------------------------------------------
+	// 10. Auth header: token sent when configured, absent when missing
 	// ---------------------------------------------------------------
 	describe("auth header", () => {
 		it("sends Authorization header when token is configured", async () => {
