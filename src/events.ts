@@ -22,6 +22,7 @@ import type {
  */
 export class CantonEventEmitter {
 	private listeners = new Map<CantonEventType, Set<CantonEventListener<CantonEventType>>>();
+	private onceWrappers = new WeakMap<CantonEventListener<CantonEventType>, CantonEventListener<CantonEventType>>();
 
 	/**
 	 * Register an event listener.
@@ -53,6 +54,10 @@ export class CantonEventEmitter {
 			this.off(event, wrapper);
 			listener(data);
 		}) as CantonEventListener<K>;
+		this.onceWrappers.set(
+			listener as CantonEventListener<CantonEventType>,
+			wrapper as CantonEventListener<CantonEventType>,
+		);
 		return this.on(event, wrapper);
 	}
 
@@ -66,11 +71,19 @@ export class CantonEventEmitter {
 		listener: CantonEventListener<K>,
 	): void {
 		const set = this.listeners.get(event);
-		if (set) {
-			set.delete(listener as CantonEventListener<CantonEventType>);
-			if (set.size === 0) {
-				this.listeners.delete(event);
-			}
+		if (!set) return;
+
+		const cast = listener as CantonEventListener<CantonEventType>;
+		const wrapper = this.onceWrappers.get(cast);
+
+		set.delete(cast);
+		if (wrapper) {
+			set.delete(wrapper);
+			this.onceWrappers.delete(cast);
+		}
+
+		if (set.size === 0) {
+			this.listeners.delete(event);
 		}
 	}
 
@@ -85,8 +98,10 @@ export class CantonEventEmitter {
 		for (const listener of set) {
 			try {
 				listener(data);
-			} catch {
-				// Prevent listener errors from breaking the emitter
+			} catch (error: unknown) {
+				if (event !== "error") {
+					console.error(`[CantonEventEmitter] Listener error on "${event}":`, error);
+				}
 			}
 		}
 	}
