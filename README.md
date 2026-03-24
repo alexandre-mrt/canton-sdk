@@ -12,13 +12,17 @@ The simplest way to build on **Canton Network** with TypeScript.
 
 The official Canton SDKs are powerful but complex:
 
-| | Official `@canton-network/dapp-sdk` | **`canton-sdk`** |
-|---|---|---|
-| Dependencies | 7 internal + gRPC, protobuf, jose | **0** |
-| Setup | Wallet Gateway + browser extension | `new CantonClient({ url, token })` |
-| Environment | Browser only | Browser + Node.js |
-| Learning curve | CIP-103, RPC, wallet gateway | 5 functions |
-| Dev mode | Requires Canton node | Built-in demo mode |
+| | Official `@canton-network/dapp-sdk` | Official `wallet-sdk` | **`canton-sdk`** |
+|---|---|---|---|
+| Dependencies | 7 internal packages | 16 deps (gRPC, protobuf, jose) | **0** |
+| Setup | Wallet Gateway + extension | 6-step init ceremony | `new CantonClient({ url, token })` |
+| Simple transfer | ~15 lines | ~25 lines (prepare/sign/execute/wait) | **1 line** |
+| React hooks | None (hand-roll your own) | N/A (Node only) | `useCanton()` + `useContracts()` |
+| Test suite | `echo "Warning: no test"` | `echo "Warning: no test"` | **17 tests** |
+| Dev mode | Requires Canton node | Requires Canton node | **Built-in demo mode** |
+| Environment | Browser only | Node.js only | **Both** |
+
+Based on analysis of the official [splice-wallet-kernel](https://github.com/hyperledger-labs/splice-wallet-kernel) repo (739 TS files, 22+ internal packages).
 
 ## Quick Start
 
