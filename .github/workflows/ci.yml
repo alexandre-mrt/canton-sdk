@@ -4,16 +4,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-
+permissions:
+  contents: read
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - run: bun install
-      - run: bun run test
-      - run: bun run build
-      - run: bun run type-check
+  ci:
+    uses: alexandre-mrt/.github/.github/workflows/ts-bun-ci.yml@main
+    with:
+      has-tests: false
