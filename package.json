@@ -30,7 +30,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.8.0",
+    "typescript": "^6.0.2",
     "@biomejs/biome": "^1.9.4",
     "tsup": "^8.4.0",
     "vitest": "^3.1.0",
