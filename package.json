@@ -33,7 +33,7 @@
     "typescript": "^5.8.0",
     "@biomejs/biome": "^1.9.4",
     "tsup": "^8.4.0",
-    "vitest": "^3.1.0",
+    "vitest": "^4.1.4",
     "react": "^19.1.0",
     "@types/react": "^19.1.0",
     "@types/node": "^22.0.0"
