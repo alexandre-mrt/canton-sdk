@@ -4,7 +4,7 @@ The simplest way to build on **Canton Network** with TypeScript.
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)
 ![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-green)
-![Tests](https://img.shields.io/badge/Tests-17%20passing-green)
+![Tests](https://img.shields.io/badge/Tests-56%20passing-green)
 ![Canton](https://img.shields.io/badge/Canton-Network-0052ff)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -18,7 +18,7 @@ The official Canton SDKs are powerful but complex:
 | Setup | Wallet Gateway + extension | 6-step init ceremony | `new CantonClient({ url, token })` |
 | Simple transfer | ~15 lines | ~25 lines (prepare/sign/execute/wait) | **1 line** |
 | React hooks | None (hand-roll your own) | N/A (Node only) | `useCanton()` + `useContracts()` |
-| Test suite | `echo "Warning: no test"` | `echo "Warning: no test"` | **17 tests** |
+| Test suite | `echo "Warning: no test"` | `echo "Warning: no test"` | **56 tests** |
 | Dev mode | Requires Canton node | Requires Canton node | **Built-in demo mode** |
 | Environment | Browser only | Node.js only | **Both** |
 
@@ -161,7 +161,7 @@ canton-sdk:
 ## Testing
 
 ```bash
-bun run test        # 17 tests
+bun run test        # 56 tests
 bun run test:watch  # Watch mode
 ```
 
